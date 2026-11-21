@@ -3,7 +3,7 @@
    Buildings are rendered once into cached sprites, so detailed textures stay fast. */
 window.GFX = (function () {
   const TW = 64, TH = 32, ZS = 38, SPR = 2;
-  const E = { g: null, now: 0, night: 0, lit: null, glows: null };
+  const E = { g: null, now: 0, night: 0, lit: null, glows: null, rot: 0, world: false, map: 48 };
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
   const sstep = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -33,9 +33,14 @@ window.GFX = (function () {
     v = 'rgb(' + clamp(Math.round(r * f), 0, 255) + ',' + clamp(Math.round(g * f), 0, 255) + ',' + clamp(Math.round(b * f), 0, 255) + ')';
     shCache[k] = v; return v;
   }
-  const PXf = (x, y) => (x - y) * TW / 2;
-  const PYf = (x, y, z) => (x + y) * TH / 2 - (z || 0) * ZS;
+  const rvx = (x, y) => E.rot === 0 ? x : E.rot === 1 ? E.map - y : E.rot === 2 ? E.map - x : y;
+  const rvy = (x, y) => E.rot === 0 ? y : E.rot === 1 ? x : E.rot === 2 ? E.map - y : E.map - x;
+  const PXf = (x, y) => { if (E.world && E.rot) { const a = rvx(x, y), b = rvy(x, y); return (a - b) * TW / 2; } return (x - y) * TW / 2; };
+  const PYf = (x, y, z) => { if (E.world && E.rot) { const a = rvx(x, y), b = rvy(x, y); return (a + b) * TH / 2 - (z || 0) * ZS; } return (x + y) * TH / 2 - (z || 0) * ZS; };
   const P = (x, y, z) => [PXf(x, y), PYf(x, y, z)];
+  const PR = (x, y, z) => [(x - y) * TW / 2, (x + y) * TH / 2 - (z || 0) * ZS];
+  const vsum = (x, y) => rvx(x, y) + rvy(x, y);
+  function vAnchor(x, y, w, d) { if (!E.rot) return [x, y]; const ax = rvx(x, y), ay = rvy(x, y), bx = rvx(x + w, y + d), by = rvy(x + w, y + d); return [Math.min(ax, bx), Math.min(ay, by)]; }
   const mix = (A, B, u) => [A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u];
 
   function path(pts) {
@@ -323,7 +328,7 @@ window.GFX = (function () {
     treeAt(0.4, 2.6, 5, 1.1); treeAt(2.8, 0.5, 1, 1.0); blob(1.0, 2.0, 0.08, 0.1, '#f4a5b8', '#e0708d', '#b94867');
   }
   function mansion() {
-    lot(0, 0, 4, 3, '#8ccb68'); lot(1.4, 2.05, 2.6, 3, '#b9b3a6'); lot(1.7, 2.0, 2.3, 3, '#d9d3c5');
+    lot(0, 0, 4, 4, '#8ccb68'); lot(1.4, 2.05, 2.6, 4, '#b9b3a6'); lot(1.7, 2.0, 2.3, 4, '#d9d3c5');
     shadowBox(0, 0, 4, 2, 1.8);
     boxS(0, 0, 4, 2, 0, 1.5, { c: '#efe6d2', tex: 'siding' });
     winGrid([0, 2], [4, 2], 0.2, 1.4, 8, 2, 0.2, 0.12, 0.66, { s: 1, mull: 1, skip: [0.36, 0.64], shut: '#3a3f4a', sill: 1 }); winGrid([4, 0], [4, 2], 0.2, 1.4, 4, 2, 0.2, 0.12, 0.95, { s: 9, fs: 3, mull: 1, sill: 1 });
@@ -455,7 +460,7 @@ window.GFX = (function () {
     treeAt(1.85, 1.8, 4, 0.7); treeAt(0.2, 1.8, 3, 0.7);
   }
   function school() {
-    lot(0, 0, 3, 2, '#c9b98c'); lot(0, 0, 3, 0.12, '#8ccb68'); lot(0.1, 1.35, 2.9, 2, '#d6c8a0'); shadowBox(0.2, 0.2, 2.8, 1.1, 1.2);
+    lot(0, 0, 3, 3, '#c9b98c'); lot(0, 0, 3, 0.12, '#8ccb68'); lot(0.1, 1.35, 2.9, 2.9, '#d6c8a0'); shadowBox(0.2, 0.2, 2.8, 1.1, 1.2);
     boxS(0.2, 0.2, 2.8, 1.1, 0, 0.85, { c: '#c77a5a', tex: 'brick' }); const A = [0.2, 1.1], B = [2.8, 1.1];
     winGrid(A, B, 0.1, 0.4, 10, 1, 0.18, 0.12, 0.66, { s: 1, ins: 0.08, mull: 1, skip: [0.44, 0.56] }); winGrid(A, B, 0.5, 0.78, 10, 1, 0.18, 0.1, 0.66, { s: 2, ins: 0.08, mull: 1 });
     winGrid([2.8, 0.2], [2.8, 1.1], 0.1, 0.78, 3, 2, 0.2, 0.14, 0.95, { s: 3, ins: 0.08 });
@@ -483,16 +488,16 @@ window.GFX = (function () {
     line(P(0.7, 1.4, 0.3), P(1.7, 1.55, 0.6), '#4f565c', 2.2);
   }
   function solar() {
-    lot(0, 0, 3, 2, '#9aa56f', 'rgba(0,0,0,.15)'); shadowBox(0.1, 0.1, 2.9, 1.9, 0.4); const g = E.g;
+    lot(0, 0, 3, 3, '#9aa56f', 'rgba(0,0,0,.15)'); shadowBox(0.1, 0.1, 2.9, 2.9, 0.4); const g = E.g;
     for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-      const x = 0.12 + c * 0.95, y = 0.1 + r * 0.6, w = 0.8, d = 0.4;
+      const x = 0.12 + c * 0.95, y = 0.15 + r * 0.9, w = 0.8, d = 0.45;
       const q = [P(x, y, 0.4), P(x + w, y, 0.4), P(x + w, y + d, 0.14), P(x, y + d, 0.14)];
       line(P(x + 0.1, y + d - 0.02, 0.14), P(x + 0.1, y + d - 0.02, 0.01), '#6b7076', 1); line(P(x + w - 0.1, y + d - 0.02, 0.14), P(x + w - 0.1, y + d - 0.02, 0.01), '#6b7076', 1);
       path(q); const gr = g.createLinearGradient(q[0][0], q[0][1], q[2][0], q[2][1]); gr.addColorStop(0, '#2c4d86'); gr.addColorStop(0.5, '#3d68ad'); gr.addColorStop(1, '#223e6e'); g.fillStyle = gr; g.fill(); g.strokeStyle = '#d9dde0'; g.lineWidth = 1.1; g.stroke();
       g.beginPath(); for (let i = 1; i < 4; i++) { const a = mix(q[0], q[1], i / 4), b = mix(q[3], q[2], i / 4); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); } const m0 = mix(q[0], q[3], 0.5), m1 = mix(q[1], q[2], 0.5); g.moveTo(m0[0], m0[1]); g.lineTo(m1[0], m1[1]); g.strokeStyle = 'rgba(210,225,245,.55)'; g.lineWidth = 0.6; g.stroke();
       path([q[0], mix(q[0], q[1], 0.5), mix(q[3], q[2], 0.2), q[3]]); g.fillStyle = 'rgba(255,255,255,.12)'; g.fill();
     }
-    boxS(2.6, 1.7, 2.9, 1.95, 0, 0.3, { c: '#d9dde0' });
+    boxS(2.6, 2.6, 2.9, 2.85, 0, 0.3, { c: '#d9dde0' });
   }
   function waterTower() {
     lot(0, 0, 1, 1, '#9fa3a6', 'rgba(0,0,0,.15)'); shadowBox(0.3, 0.3, 0.7, 0.7, 1.2);
@@ -520,16 +525,201 @@ window.GFX = (function () {
     boxS(0.45, 0.45, 0.55, 0.55, 0.14, 0.42, { c: '#bfc4c8' });
   }
 
+  // ---------- skyline, apartments, amenities ----------
+  function prism(cx, cy, hx, hy, ang, z0, z1, col, o) {
+    o = o || {}; const c = Math.cos(ang), s = Math.sin(ang);
+    const pts = [[-hx, -hy], [hx, -hy], [hx, hy], [-hx, hy]].map(([u, v]) => [cx + u * c - v * s, cy + u * s + v * c]);
+    for (let i = 0; i < 4; i++) {
+      const A = pts[i], B = pts[(i + 1) % 4]; let nx = B[1] - A[1], ny = -(B[0] - A[0]); const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+      if (nx * ((A[0] + B[0]) / 2 - cx) + ny * ((A[1] + B[1]) / 2 - cy) < 0) { nx = -nx; ny = -ny; }
+      if (nx + ny <= 0.05) continue;
+      const f = clamp(0.8 + 0.3 * nx - 0.22 * ny, 0.55, 1.02);
+      F(quadF(A, B, z0, z1), col, f, true);
+      if (o.win) winGrid(A, B, z0 + 0.03, z1 - 0.03, o.win[0], o.win[1], 0.07, 0.12, f, { glass: o.glass || '#bfe0f3', frame: o.frame || '#8fa7b8', ins: 0.05, s: (o.s || 1) + i * 5, litp: 0.5 });
+    }
+    F(pts.map(p => P(p[0], p[1], z1)), col, 1.08, false, true);
+  }
+  function curtain(x0, y0, x1, y1, z0, z1, col, glass, frame, seed) {
+    boxS(x0, y0, x1, y1, z0, z1, { c: col });
+    const cx = Math.max(2, Math.round((x1 - x0) * 3.2)), cy = Math.max(2, Math.round((y1 - y0) * 3.2)), rows = Math.max(2, Math.round((z1 - z0) * 2.4));
+    winGrid([x0, y1], [x1, y1], z0 + 0.04, z1 - 0.04, cx, rows, 0.06, 0.1, 0.66, { glass, frame, ins: 0.05, s: seed, litp: 0.5 });
+    winGrid([x1, y0], [x1, y1], z0 + 0.04, z1 - 0.04, cy, rows, 0.06, 0.1, 0.95, { glass, frame, ins: 0.05, s: seed + 17, fs: 5, litp: 0.5 });
+  }
+  function glassTower() {
+    lot(0, 0, 3, 3, '#aeb1b3', 'rgba(0,0,0,.15)'); lot(0, 0, 3, 0.2, '#8ccb68'); shadowBox(0.4, 0.4, 2.6, 2.6, 9.5);
+    boxS(0.1, 0.1, 2.9, 2.9, 0, 0.55, { c: '#6d7a86' }); winf([0.1, 2.9], [2.9, 2.9], 0.06, 0.94, 0.06, 0.45, 0.66, { glass: '#243b52', frame: '#2f3a44', ins: 0.05, s: 1, litp: 1, mull: 1 });
+    curtain(0.4, 0.4, 2.6, 2.6, 0.55, 6.8, '#5f8fb0', '#bfe0f3', '#8fa7b8', 3); curtain(0.75, 0.75, 2.25, 2.25, 6.8, 8.4, '#6a9bbd', '#cfe8f7', '#9ab3c4', 9); curtain(1.1, 1.1, 1.9, 1.9, 8.4, 9.3, '#7aa6c6', '#d8eefb', '#a8c0d0', 13);
+    line(P(1.5, 1.5, 9.3), P(1.5, 1.5, 11.0), '#dfe6ea', 1.6);
+  }
+  function twinTowers() {
+    lot(0, 0, 4, 4, '#aeb1b3', 'rgba(0,0,0,.15)'); shadowBox(0.5, 1.0, 3.5, 3.0, 9.5); boxS(0.2, 0.9, 3.8, 3.1, 0, 0.5, { c: '#6d7a86' });
+    curtain(0.5, 1.2, 1.7, 2.8, 0.5, 8.6, '#4f7fa3', '#bfe0f3', '#8fa7b8', 21); boxS(1.7, 1.75, 2.3, 2.25, 5.6, 6.2, { c: '#9fb3c3' }); curtain(2.3, 1.2, 3.5, 2.8, 0.5, 8.6, '#5f8fb0', '#bfe0f3', '#8fa7b8', 27);
+    boxS(0.6, 1.3, 1.6, 2.7, 8.6, 8.8, { c: '#cfd8de' }); boxS(2.4, 1.3, 3.4, 2.7, 8.6, 8.8, { c: '#cfd8de' });
+    line(P(1.1, 2.0, 8.8), P(1.1, 2.0, 10.4), '#dfe6ea', 1.4); line(P(2.9, 2.0, 8.8), P(2.9, 2.0, 10.4), '#dfe6ea', 1.4);
+  }
+  function needle() {
+    lot(0, 0, 3, 3, '#aeb1b3', 'rgba(0,0,0,.15)'); shadowBox(0.5, 0.5, 2.5, 2.5, 10);
+    const T = [[0.2, 2.8, 0, 0.5, '#8b98a4'], [0.45, 2.55, 0.5, 2.7, '#7fa3bf'], [0.7, 2.3, 2.7, 4.7, '#8ab0cb'], [0.95, 2.05, 4.7, 6.3, '#97bdd6'], [1.15, 1.85, 6.3, 7.6, '#a5c8de'], [1.3, 1.7, 7.6, 8.7, '#b3d3e6']];
+    T.forEach((t, i) => curtain(t[0], t[0], t[1], t[1], t[2], t[3], t[4], '#d4ecf9', '#9fb8c8', 31 + i * 7));
+    line(P(1.5, 1.5, 8.7), P(1.5, 1.5, 11.8), '#e4eaee', 1.8);
+  }
+  function twisted() {
+    lot(0, 0, 3, 3, '#aeb1b3', 'rgba(0,0,0,.15)'); shadowBox(0.6, 0.6, 2.4, 2.4, 9); boxS(0.25, 0.25, 2.75, 2.75, 0, 0.4, { c: '#6d7a86' });
+    for (let i = 0; i < 14; i++) { const z0 = 0.4 + i * 0.56, k = 1 - i * 0.014; prism(1.5, 1.5, 0.85 * k, 0.85 * k, i * 0.13, z0, z0 + 0.56, i % 2 ? '#6f9bbd' : '#7aa6c6', { win: [5, 1], s: 41 + i }); }
+    line(P(1.5, 1.5, 8.3), P(1.5, 1.5, 9.8), '#dfe6ea', 1.4);
+  }
+  function egg() {
+    lot(0, 0, 3, 3, '#aeb1b3', 'rgba(0,0,0,.15)'); lot(0, 0, 3, 0.25, '#8ccb68'); shadowBox(0.5, 0.5, 2.5, 2.5, 8);
+    const n = 15, r = u => 0.35 + 0.62 * Math.sin(Math.PI * (0.1 + 0.8 * u));
+    for (let i = 0; i < n; i++) { const z0 = 0.2 + i * 0.46; cyl(1.5, 1.5, r(i / n), z0, z0 + 0.46, i % 2 ? '#7fb0cf' : '#5f8fb0', r((i + 1) / n)); }
+    blob(1.5, 1.5, 7.3, 0.3, '#cfe8f5', '#8fb9d4', '#5f8fb0');
+  }
+  function brownstones() {
+    lot(0, 0, 2, 2, '#b9b6b0'); lot(0, 0, 2, 0.12, '#8ccb68'); lot(0, 1.62, 2, 2, '#c9c4b8'); shadowBox(0.1, 0.25, 1.9, 1.4, 1.2);
+    const cs = ['#9c5a3c', '#b0674a', '#8a4e36', '#a45f43'];
+    for (let i = 0; i < 4; i++) {
+      const x0 = 0.1 + i * 0.45, x1 = x0 + 0.45, h = 1.0 + (i % 2) * 0.06, A = [x0, 1.4], B = [x1, 1.4];
+      boxS(x0, 0.25, x1, 1.4, 0, h, { c: cs[i], tex: 'brick' }); winf(A, B, 0.2, 0.8, 0.6, 0.92, 0.66, { s: i, mull: 1, sill: 1 }); doorF(A, B, 0.5, 0.26, 0.36, '#3a2a22');
+      boxS(x0 + 0.06, 1.4, x1 - 0.06, 1.58, 0, 0.14, { c: '#cfc7b8' }); boxS(x0 - 0.01, 0.23, x1 + 0.01, 1.42, h, h + 0.06, { c: '#d9cfc2' });
+    }
+    treeAt(0.3, 1.8, 1, 0.7); treeAt(1.1, 1.82, 2, 0.7); treeAt(1.8, 1.8, 5, 0.7);
+  }
+  function highrise() {
+    lot(0, 0, 2, 2, '#a8aca9'); lot(0, 0, 2, 0.15, '#8ccb68'); shadowBox(0.3, 0.3, 1.7, 1.7, 6.5); boxS(0.2, 0.2, 1.8, 1.8, 0, 0.4, { c: '#8f8a84' }); boxS(0.3, 0.3, 1.7, 1.7, 0.4, 6.2, { c: '#e4dfd6' });
+    const L = [[0.3, 1.7], [1.7, 1.7]], R = [[1.7, 0.3], [1.7, 1.7]];
+    winGrid(L[0], L[1], 0.5, 6.1, 5, 16, 0.18, 0.18, 0.66, { glass: '#7fa7c6', s: 5, sill: 1, litp: 0.45, ins: 0.1 }); winGrid(R[0], R[1], 0.5, 6.1, 5, 16, 0.18, 0.18, 0.95, { glass: '#7fa7c6', s: 25, fs: 4, sill: 1, litp: 0.45, ins: 0.1 });
+    for (let i = 1; i < 16; i += 2) { const z = 0.5 + 5.6 * i / 16; ledge([0.45, 1.7], [1.55, 1.7], z, 0.08, 0, 1, '#cfc9be', 0.66); ledge([1.7, 0.45], [1.7, 1.55], z, 0.08, 1, 0, '#cfc9be', 0.95); }
+    doorF(L[0], L[1], 0.5, 0.12, 0.34, '#2b3a46'); boxS(0.25, 0.25, 1.75, 1.75, 6.2, 6.32, { c: '#bdb6aa' }); boxS(0.5, 0.5, 1.0, 0.9, 6.32, 6.6, { c: '#9aa0a6' });
+  }
+  function marinaTower() {
+    lot(0, 0, 2, 2, '#a8aca9'); lot(0, 0, 2, 0.15, '#8ccb68'); shadowBox(0.4, 0.4, 1.6, 1.6, 8.5); boxS(0.25, 0.25, 1.75, 1.75, 0, 0.4, { c: '#8f8a84' }); boxS(0.4, 0.4, 1.6, 1.6, 0.4, 8.0, { c: '#f0f3f5' });
+    const L = [[0.4, 1.6], [1.6, 1.6]], R = [[1.6, 0.4], [1.6, 1.6]];
+    winGrid(L[0], L[1], 0.5, 7.9, 4, 20, 0.15, 0.2, 0.66, { glass: '#6aa6d6', s: 7, litp: 0.5, ins: 0.06 }); winGrid(R[0], R[1], 0.5, 7.9, 4, 20, 0.15, 0.2, 0.95, { glass: '#6aa6d6', s: 29, fs: 4, litp: 0.5, ins: 0.06 });
+    for (let i = 1; i < 20; i++) { const z = 0.5 + 7.4 * i / 20, o = 0.04 + 0.1 * Math.abs(Math.sin(i * 0.7)); ledge([0.4, 1.6], [1.6, 1.6], z, o, 0, 1, '#ffffff', 0.66); ledge([1.6, 0.4], [1.6, 1.6], z, o, 1, 0, '#ffffff', 0.95); }
+    doorF(L[0], L[1], 0.5, 0.14, 0.34, '#2b3a46'); boxS(0.5, 0.5, 1.5, 1.5, 8.0, 8.12, { c: '#cfd6dc' });
+  }
+  function mayorHome() {
+    lot(0, 0, 3, 3, '#8ccb68', 'rgba(60,110,50,.25)'); lot(0.3, 2.2, 2.7, 3, '#cfc9bb'); lot(1.2, 2.0, 1.8, 3, '#e6e0d2'); shadowBox(0.3, 0.3, 2.7, 2.7, 5.8);
+    boxS(0.15, 0.15, 2.85, 2.85, 0, 0.62, { c: '#e8dfc8', tex: 'brick' }); const A = [0.15, 2.85], B = [2.85, 2.85];
+    winf(A, B, 0.1, 0.4, 0.15, 0.5, 0.66, { s: 1, mull: 1 }); winf(A, B, 0.6, 0.9, 0.15, 0.5, 0.66, { s: 2, mull: 1 }); doorF(A, B, 0.5, 0.14, 0.4, '#c9a24a'); boxS(1.0, 2.85, 2.0, 3.0, 0.5, 0.56, { c: '#d4af37' });
+    boxS(0.35, 0.35, 2.65, 2.65, 0.62, 4.5, { c: '#f4efe4' });
+    winGrid([0.35, 2.65], [2.65, 2.65], 0.7, 4.4, 4, 6, 0.12, 0.14, 0.66, { glass: '#6f9cc0', s: 3, mull: 1, litp: 0.7, ins: 0.07 }); winGrid([2.65, 0.35], [2.65, 2.65], 0.7, 4.4, 4, 6, 0.12, 0.14, 0.95, { glass: '#6f9cc0', s: 7, fs: 3, mull: 1, litp: 0.7, ins: 0.07 });
+    for (let i = 1; i < 6; i++) { const z = 0.7 + 3.7 * i / 6; ledge([0.4, 2.65], [2.6, 2.65], z, 0.1, 0, 1, '#d4af37', 0.66); ledge([2.65, 0.4], [2.65, 2.6], z, 0.1, 1, 0, '#d4af37', 0.95); }
+    boxS(0.6, 0.6, 2.4, 2.4, 4.5, 5.6, { c: '#e9e3d6' }); winGrid([0.6, 2.4], [2.4, 2.4], 4.6, 5.5, 4, 1, 0.1, 0.1, 0.66, { glass: '#9cc3df', s: 9, ins: 0.06, litp: 0.9 }); winGrid([2.4, 0.6], [2.4, 2.4], 4.6, 5.5, 4, 1, 0.1, 0.1, 0.95, { glass: '#9cc3df', s: 11, fs: 2, ins: 0.06, litp: 0.9 });
+    boxS(0.5, 0.5, 2.5, 2.5, 5.6, 5.7, { c: '#d4af37' });
+    const g = E.g, hp = P(1.5, 1.5, 5.72); g.beginPath(); g.ellipse(hp[0], hp[1], 26, 13, 0, 0, 7); g.fillStyle = '#3b4148'; g.fill(); g.strokeStyle = '#ffd34d'; g.lineWidth = 1.6; g.stroke();
+    line(P(1.3, 1.25, 5.72), P(1.3, 1.75, 5.72), '#ffd34d', 2); line(P(1.7, 1.25, 5.72), P(1.7, 1.75, 5.72), '#ffd34d', 2); line(P(1.3, 1.5, 5.72), P(1.7, 1.5, 5.72), '#ffd34d', 2);
+    line(P(2.5, 0.5, 5.7), P(2.5, 0.5, 6.8), '#e8e8e8', 1.4); F([P(2.5, 0.5, 6.8), P(2.5, 0.5, 6.5), P(2.85, 0.62, 6.6)], '#d4af37', 1, false);
+    treeAt(0.3, 2.6, 2, 1.0); treeAt(2.7, 2.5, 5, 1.0);
+  }
+  function stadium() {
+    lot(0, 0, 4, 4, '#9a9d9f', 'rgba(0,0,0,.15)'); shadowBox(0.3, 0.3, 3.7, 3.7, 1.3); const g = E.g;
+    const mast = (x, y) => { line(P(x, y, 0), P(x, y, 2.4), '#9aa0a6', 2); boxS(x - 0.15, y - 0.15, x + 0.15, y + 0.15, 2.4, 2.55, { c: '#e8e8e8' }); };
+    mast(0.25, 0.25); cyl(2, 2, 1.85, 0, 0.95, '#d9d9dc');
+    const el = (r, z, fill, stroke, lw) => { const p = P(2, 2, z); g.beginPath(); g.ellipse(p[0], p[1], r * 45.25, r * 22.63, 0, 0, 7); if (fill) { g.fillStyle = fill; g.fill(); } if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw || 1; g.stroke(); } };
+    el(1.85, 0.95, '#8c8f94'); el(1.62, 0.93, '#b9473c'); el(1.32, 0.91, '#d9d9dc'); el(1.2, 0.9, '#4c9a4a');
+    g.save(); const pp = P(2, 2, 0.9); g.beginPath(); g.ellipse(pp[0], pp[1], 1.2 * 45.25, 1.2 * 22.63, 0, 0, 7); g.clip();
+    for (let k = 0; k < 5; k += 2) { path([P(0.8 + k * 0.48, 0.8, 0.9), P(0.8 + (k + 1) * 0.48, 0.8, 0.9), P(0.8 + (k + 1) * 0.48, 3.2, 0.9), P(0.8 + k * 0.48, 3.2, 0.9)]); g.fillStyle = '#58a955'; g.fill(); } g.restore();
+    el(0.45, 0.9, null, 'rgba(255,255,255,.85)', 1.2); line(P(2, 1.2, 0.9), P(2, 2.8, 0.9), 'rgba(255,255,255,.85)', 1.2); el(1.85, 0.95, null, '#6f7378', 2.4);
+    mast(3.75, 0.25); mast(0.25, 3.75); mast(3.75, 3.75);
+  }
+  function mall() {
+    lot(0, 0, 3, 3, '#8a8d90'); for (let i = 0; i < 8; i++) line(P(0.3 + i * 0.33, 2.3, 0.01), P(0.3 + i * 0.33, 2.9, 0.01), 'rgba(255,255,255,.6)', 1);
+    shadowBox(0.2, 0.2, 2.8, 2.0, 1.5); boxS(0.2, 0.2, 2.8, 2.0, 0, 1.1, { c: '#e3d9c6' }); const A = [0.2, 2.0], B = [2.8, 2.0];
+    winf(A, B, 0.05, 0.95, 0.08, 0.7, 0.66, { glass: '#3a5a78', frame: '#c9c2b0', ins: 0.04, s: 3, litp: 1, mull: 1 }); band(A, B, 0.78, 1.05, '#2a4a7a', 0.66); winf([2.8, 0.2], [2.8, 2.0], 0.2, 0.8, 0.2, 0.8, 0.95, { s: 4, ins: 0.08 });
+    awning(A, B, 0.35, 0.65, 0.75, 0.12, 0.25, 0, 1, '#f4f1ea', '#d9342b'); boxS(0.15, 0.15, 2.85, 2.05, 1.1, 1.18, { c: '#c9c2b0' }); boxS(0.5, 0.5, 1.0, 0.9, 1.18, 1.4, { c: '#9aa0a6' }); boxS(1.8, 0.6, 2.4, 0.9, 1.18, 1.32, { c: '#9aa0a6' });
+    const cc = ['#d9342b', '#2f6fed', '#e5e7eb', '#111827', '#f59e0b', '#16a34a']; for (let i = 0; i < 6; i++) { const x = 0.4 + i * 0.4; boxS(x, 2.45, x + 0.28, 2.6, 0, 0.1, { c: cc[i] }); boxS(x + 0.05, 2.47, x + 0.22, 2.58, 0.1, 0.17, { c: '#2b3440' }); }
+  }
+  function cinema() {
+    lot(0, 0, 2, 2, '#9ea1a4'); shadowBox(0.2, 0.2, 1.8, 1.4, 1.2); boxS(0.2, 0.2, 1.8, 1.4, 0, 0.95, { c: '#4a3a5e' }); const A = [0.2, 1.4], B = [1.8, 1.4];
+    band(A, B, 0.5, 0.62, '#d9342b', 0.66); for (let i = 0; i < 14; i++) { const m = mix(A, B, 0.05 + i * 0.067), p = P(m[0], m[1] + 0.01, 0.56); E.g.beginPath(); E.g.arc(p[0], p[1], 1.2, 0, 7); E.g.fillStyle = '#ffe27a'; E.g.fill(); }
+    winf(A, B, 0.08, 0.3, 0.08, 0.42, 0.66, { glass: '#c0504d', s: 1, litp: 1, ins: 0.05 }); winf(A, B, 0.36, 0.58, 0.08, 0.42, 0.66, { glass: '#4f7fb0', s: 2, litp: 1, ins: 0.05 }); winf(A, B, 0.64, 0.92, 0.08, 0.42, 0.66, { glass: '#d4a137', s: 3, litp: 1, ins: 0.05 });
+    boxS(0.2, 0.2, 1.8, 1.4, 0.95, 1.02, { c: '#2f2540' }); boxS(0.9, 0.4, 1.1, 0.6, 1.02, 1.9, { c: '#d9342b' });
+  }
+  function hotel() {
+    lot(0, 0, 2, 2, '#aeb1b3'); lot(0, 0, 2, 0.12, '#8ccb68'); lot(1.2, 1.62, 1.85, 1.95, '#4fb8d8', '#d6cfc0'); shadowBox(0.3, 0.3, 1.7, 1.7, 4.6);
+    boxS(0.2, 0.2, 1.8, 1.5, 0, 0.5, { c: '#b8a98c', tex: 'brick' }); boxS(0.35, 0.35, 1.65, 1.45, 0.5, 4.3, { c: '#e3d6bd' });
+    const L = [[0.35, 1.45], [1.65, 1.45]], R = [[1.65, 0.35], [1.65, 1.45]];
+    winGrid(L[0], L[1], 0.58, 4.2, 5, 9, 0.16, 0.16, 0.66, { s: 2, mull: 1, litp: 0.5, ins: 0.08 }); winGrid(R[0], R[1], 0.58, 4.2, 4, 9, 0.16, 0.16, 0.95, { s: 6, fs: 3, mull: 1, litp: 0.5, ins: 0.08 });
+    for (let i = 1; i < 9; i += 2) { const z = 0.58 + 3.6 * i / 9; ledge([0.4, 1.45], [1.6, 1.45], z, 0.07, 0, 1, '#cdbfa4', 0.66); }
+    boxS(0.6, 1.45, 1.4, 1.72, 0.4, 0.46, { c: '#d4af37' }); doorF(L[0], L[1], 0.5, 0.2, 0.34, '#3a2a22'); boxS(0.35, 0.35, 1.65, 1.45, 4.3, 4.42, { c: '#cdbfa4' }); boxS(0.6, 0.6, 1.4, 0.8, 4.42, 4.75, { c: '#c0392b' });
+  }
+  function library() {
+    lot(0, 0, 2, 2, '#8ccb68'); lot(0.2, 1.55, 1.8, 2, '#d6d0c4'); shadowBox(0.25, 0.3, 1.75, 1.5, 1.3); boxS(0.25, 0.3, 1.75, 1.5, 0, 0.8, { c: '#e6dfd0' }); const A = [0.25, 1.5], B = [1.75, 1.5];
+    winGrid(A, B, 0.15, 0.65, 6, 1, 0.2, 0.1, 0.66, { s: 3, ins: 0.1, mull: 1, skip: [0.4, 0.6] }); winGrid([1.75, 0.3], [1.75, 1.5], 0.15, 0.65, 3, 1, 0.2, 0.1, 0.95, { s: 5, ins: 0.1 });
+    for (let i = 0; i < 6; i++) { const x = 0.5 + i * 0.22; boxS(x - 0.04, 1.5, x + 0.04, 1.58, 0, 0.7, { c: '#f6f3ea' }); }
+    boxS(0.4, 1.48, 1.6, 1.62, 0.7, 0.78, { c: '#f6f3ea' }); F([P(0.4, 1.62, 0.78), P(1.6, 1.62, 0.78), P(1.0, 1.62, 1.05)], '#e6dfd0', 0.66, false);
+    boxS(0.2, 0.25, 1.8, 1.55, 0.8, 0.86, { c: '#cfc7b8' }); blob(1.0, 0.9, 0.95, 0.45, '#9fd0c4', '#5aa396', '#2f6f64'); treeAt(0.2, 1.85, 2, 0.8); treeAt(1.85, 1.85, 4, 0.8);
+  }
+  function mosque() {
+    lot(0, 0, 2, 2, '#d6d0c4'); lot(0, 0, 2, 0.15, '#8ccb68'); shadowBox(0.3, 0.5, 1.7, 1.7, 2.8);
+    const minaret = (x, y) => { cyl(x, y, 0.07, 0, 2.3, '#f5f0e6'); cyl(x, y, 0.1, 1.7, 1.78, '#d8cfb8'); cyl(x, y, 0.09, 2.3, 2.38, '#3fa79b', 0.01); line(P(x, y, 2.38), P(x, y, 2.6), '#d4af37', 1.2); };
+    minaret(0.3, 0.55); boxS(0.3, 0.5, 1.7, 1.7, 0, 0.7, { c: '#f1ead8' }); const A = [0.3, 1.7], B = [1.7, 1.7];
+    winGrid(A, B, 0.12, 0.55, 4, 1, 0.2, 0.1, 0.66, { glass: '#3f9a8e', s: 1, ins: 0.08, frame: '#e8dfc8', skip: [0.4, 0.6] }); doorF(A, B, 0.5, 0.16, 0.4, '#2f7f74'); winGrid([1.7, 0.5], [1.7, 1.7], 0.12, 0.55, 3, 1, 0.2, 0.1, 0.95, { glass: '#3f9a8e', s: 2, ins: 0.08, frame: '#e8dfc8' });
+    boxS(0.3, 0.5, 1.7, 1.7, 0.7, 0.76, { c: '#d8cfb8' }); blob(1.0, 1.1, 0.95, 0.52, '#8fe0d6', '#3fa79b', '#1f6f68'); line(P(1.0, 1.1, 1.45), P(1.0, 1.1, 1.75), '#d4af37', 1.5); minaret(1.7, 1.65);
+  }
+  function church() {
+    lot(0, 0, 2, 2, '#8ccb68'); lot(0.5, 1.5, 1.0, 2, '#d6d0c4'); shadowBox(0.25, 0.4, 1.8, 1.6, 2.4); boxS(0.25, 0.5, 1.8, 1.5, 0, 0.7, { c: '#e8e2d4', tex: 'siding' });
+    winGrid([0.25, 1.5], [1.8, 1.5], 0.15, 0.55, 4, 1, 0.25, 0.1, 0.66, { glass: '#c0504d', s: 1, ins: 0.1, frame: '#d8d0c0' }); winGrid([1.8, 0.5], [1.8, 1.5], 0.15, 0.55, 3, 1, 0.25, 0.1, 0.95, { glass: '#4f7fb0', s: 3, ins: 0.1, frame: '#d8d0c0' });
+    gableRoof(0.25, 0.5, 1.8, 1.5, 0.7, 0.45, '#6b4b3a', '#e8e2d4', true);
+    boxS(0.2, 1.15, 0.75, 1.7, 0, 1.5, { c: '#e8e2d4', tex: 'siding' }); winf([0.2, 1.7], [0.75, 1.7], 0.3, 0.7, 0.9, 1.3, 0.66, { glass: '#3a3f4a', s: 5, ins: 0.1 }); doorF([0.2, 1.7], [0.75, 1.7], 0.5, 0.3, 0.5, '#6a4228');
+    const apex = P(0.475, 1.425, 2.6); F([P(0.2, 1.7, 1.5), P(0.75, 1.7, 1.5), apex], '#6b4b3a', 0.66, false); F([P(0.75, 1.7, 1.5), P(0.75, 1.15, 1.5), apex], '#6b4b3a', 0.95, false);
+    line(apex, P(0.475, 1.425, 2.9), '#d9d9d9', 1.4); line(P(0.475, 1.425, 2.8), P(0.475, 1.425, 2.8), '#d9d9d9', 1);
+  }
+  function market() {
+    lot(0, 0, 2, 2, '#d6c8a0', 'rgba(0,0,0,.12)'); const cs = ['#d9342b', '#f2c230', '#2f8fd9', '#2fb37a', '#e07b2f', '#a855c7'], g = E.g;
+    for (let j = 0; j < 3; j++) for (let i = 0; i < 3; i++) {
+      const x = 0.35 + i * 0.65, y = 0.35 + j * 0.65, c = cs[(i * 3 + j) % 6];
+      boxS(x - 0.14, y - 0.08, x + 0.14, y + 0.08, 0, 0.14, { c: '#8a5a3a' }); line(P(x, y, 0.14), P(x, y, 0.5), '#e8e8e8', 1.2);
+      const ap = P(x, y, 0.58), ec = P(x, y, 0.38), rx = 0.27 * 45.25, ry = 0.27 * 22.63;
+      g.beginPath(); g.ellipse(ec[0], ec[1], rx, ry, 0, 0, 7); g.fillStyle = shade(c, 0.8); g.fill(); path([ap, [ec[0] - rx, ec[1]], [ec[0] + rx, ec[1]]]); g.fillStyle = shade(c, 1.08); g.fill();
+    }
+  }
+  function ferris() {
+    lot(0, 0, 3, 3, '#8ccb68'); lot(0.3, 0.3, 2.7, 2.7, '#cfc7b8'); shadowBox(0.4, 0.4, 2.6, 2.6, 3); boxS(1.2, 1.2, 1.8, 1.8, 0, 0.3, { c: '#d9342b' });
+    line(P(1.25, 1.5, 0.3), P(1.5, 1.5, 2.7), '#e8e8e8', 3); line(P(1.75, 1.5, 0.3), P(1.5, 1.5, 2.7), '#e8e8e8', 3); boxS(2.1, 2.1, 2.6, 2.6, 0, 0.35, { c: '#f2c230' }); treeAt(0.4, 2.5, 0, 0.8); treeAt(2.5, 0.4, 1, 0.8);
+  }
+  function golf() {
+    lot(0, 0, 4, 4, '#74c455'); for (let i = 0; i < 4; i++) lot(0.2 + i * 0.9, 0.2, 0.65 + i * 0.9, 3.8, '#82cf62'); const g = E.g;
+    const pc = P(2.6, 1.4, 0.02); g.beginPath(); g.ellipse(pc[0], pc[1], 40, 20, 0, 0, 7); g.fillStyle = '#4fb2d4'; g.fill();
+    for (const [x, y, r] of [[1, 3, 0.35], [3.2, 2.8, 0.3], [0.8, 0.9, 0.28]]) { const p = P(x, y, 0.02); g.beginPath(); g.ellipse(p[0], p[1], r * 45, r * 22, 0, 0, 7); g.fillStyle = '#e8d9a8'; g.fill(); }
+    for (const [x, y] of [[3.3, 0.6], [0.6, 3.4]]) { const p = P(x, y, 0.02); g.beginPath(); g.ellipse(p[0], p[1], 20, 10, 0, 0, 7); g.fillStyle = '#5fd18a'; g.fill(); line(P(x, y, 0.02), P(x, y, 0.7), '#eee', 1.2); F([P(x, y, 0.7), P(x, y, 0.55), P(x + 0.2, y, 0.62)], '#d9342b', 1, false); }
+    boxS(1.7, 3.2, 2.4, 3.7, 0, 0.4, { c: '#e6dfd0' }); gableRoof(1.7, 3.2, 2.4, 3.7, 0.4, 0.25, '#7a5844', '#e6dfd0', true);
+    for (const [x, y, v] of [[0.3, 0.3, 0], [3.6, 0.4, 3], [3.7, 3.6, 1], [0.4, 3.6, 2], [2.0, 0.3, 5]]) treeAt(x, y, v, 1.0);
+  }
+  function pool() {
+    lot(0, 0, 2, 2, '#e5dfd0', 'rgba(0,0,0,.12)'); const g = E.g;
+    for (const [x0, y0, x1, y1] of [[0.2, 0.3, 1.2, 1.1], [1.35, 0.3, 1.8, 1.1]]) { path([P(x0, y0, 0.02), P(x1, y0, 0.02), P(x1, y1, 0.02), P(x0, y1, 0.02)]); const gr = g.createLinearGradient(...P(x0, y0, 0), ...P(x1, y1, 0)); gr.addColorStop(0, '#6fd7ee'); gr.addColorStop(1, '#2f9fc9'); g.fillStyle = gr; g.fill(); g.strokeStyle = '#fff'; g.lineWidth = 1.5; g.stroke(); }
+    for (let i = 1; i < 4; i++) line(P(0.2 + i * 0.25, 0.3, 0.03), P(0.2 + i * 0.25, 1.1, 0.03), 'rgba(255,255,255,.6)', 1);
+    boxS(1.5, 1.25, 1.75, 1.5, 0, 0.8, { c: '#e8e8e8' }); line(P(1.62, 1.3, 0.8), P(1.62, 1.0, 0.1), '#f2c230', 5);
+    for (let i = 0; i < 4; i++) boxS(0.3 + i * 0.28, 1.45, 0.5 + i * 0.28, 1.62, 0, 0.06, { c: i % 2 ? '#ffffff' : '#f2c230' });
+    treeAt(0.3, 1.85, 2, 0.7); treeAt(1.8, 1.85, 4, 0.7);
+  }
+  function marina() {
+    lot(0, 0, 3, 3, '#3aa0c6'); lot(0, 0, 3, 0.5, '#d6c8a0'); lot(0, 0, 0.6, 3, '#d6c8a0'); boxS(0.7, 0.55, 2.9, 0.7, 0, 0.06, { c: '#9a7a52' });
+    for (let i = 0; i < 4; i++) { boxS(0.95 + i * 0.62, 0.7, 1.03 + i * 0.62, 2.3, 0, 0.06, { c: '#9a7a52' }); const x = 1.1 + i * 0.62; if (i < 3) { boxS(x, 1.2, x + 0.18, 1.8, 0.02, 0.14, { c: '#f4f4f4' }); line(P(x + 0.09, 1.5, 0.14), P(x + 0.09, 1.5, 0.8), '#ddd', 1); F([P(x + 0.09, 1.45, 0.2), P(x + 0.09, 1.45, 0.75), P(x + 0.09, 1.7, 0.22)], '#ffffff', 0.9, false); } }
+    boxS(0.1, 0.1, 0.55, 0.55, 0, 0.5, { c: '#e6dfd0' }); gableRoof(0.1, 0.1, 0.55, 0.55, 0.5, 0.25, '#2f6a8a', '#e6dfd0', true);
+  }
+  function obelisk() {
+    lot(0, 0, 1, 1, '#c9c4b6'); shadowBox(0.35, 0.35, 0.65, 0.65, 1.8); boxS(0.25, 0.25, 0.75, 0.75, 0, 0.2, { c: '#8a8f94' }); boxS(0.35, 0.35, 0.65, 0.65, 0.2, 1.2, { c: '#d9d6cf' }); boxS(0.42, 0.42, 0.58, 0.58, 1.2, 1.45, { c: '#cfcbc2' });
+    F([P(0.42, 0.58, 1.45), P(0.58, 0.58, 1.45), P(0.5, 0.5, 1.7)], '#d4af37', 0.66, false); F([P(0.58, 0.42, 1.45), P(0.58, 0.58, 1.45), P(0.5, 0.5, 1.7)], '#d4af37', 0.95, false);
+  }
+
   // ---------- sprite registry ----------
   const KINDS = {
     zr: { w: 1, d: 1, h: 2.6, draw: (l, v) => l === 1 ? resHouse(v) : l === 2 ? resTown(v) : resApt(v) },
     zc: { w: 1, d: 1, h: 4.5, draw: (l, v) => l === 1 ? comShop(v) : l === 2 ? comMid(v) : comTower(v) },
     zi: { w: 1, d: 1, h: 2.0, draw: (l, v) => l === 1 ? indWare(v) : l === 2 ? indFactory(v) : indPlant(v) },
     cottage: { w: 1, d: 1, h: 1.2, draw: (l, v) => resHouse(v) }, family: { w: 2, d: 2, h: 1.9, draw: bigHouse }, apartment: { w: 2, d: 2, h: 2.8, draw: apartment2 },
-    villa: { w: 3, d: 3, h: 1.8, draw: villa }, mansion: { w: 4, d: 3, h: 2.2, draw: mansion }, tower: { w: 3, d: 3, h: 12.8, draw: lumTower },
-    police: { w: 2, d: 2, h: 2.0, draw: police }, fire: { w: 2, d: 2, h: 1.9, draw: fire }, clinic: { w: 2, d: 2, h: 1.5, draw: clinic }, school: { w: 3, d: 2, h: 1.8, draw: school },
-    park: { w: 2, d: 2, h: 1.6, draw: park }, coal: { w: 3, d: 3, h: 3.0, draw: coal }, solar: { w: 3, d: 2, h: 0.8, draw: solar }, water: { w: 1, d: 1, h: 1.4, draw: waterTower },
-    garage: { w: 2, d: 2, h: 0.9, draw: garage }, fountain: { w: 1, d: 1, h: 0.8, draw: fountain }, tree: { w: 1, d: 1, h: 1.3, draw: (l, v) => treeAt(0.5, 0.5, v, 1.15) }, scen: { w: 1, d: 1, h: 1.3, draw: (l, v) => treeAt(0.5, 0.5, v, 1.0) }
+    villa: { w: 3, d: 3, h: 1.8, draw: villa }, mansion: { w: 4, d: 4, h: 2.2, draw: mansion }, tower: { w: 3, d: 3, h: 12.8, draw: lumTower },
+    police: { w: 2, d: 2, h: 2.0, draw: police }, fire: { w: 2, d: 2, h: 1.9, draw: fire }, clinic: { w: 2, d: 2, h: 1.5, draw: clinic }, school: { w: 3, d: 3, h: 1.8, draw: school },
+    park: { w: 2, d: 2, h: 1.6, draw: park }, coal: { w: 3, d: 3, h: 3.0, draw: coal }, solar: { w: 3, d: 3, h: 0.8, draw: solar }, water: { w: 1, d: 1, h: 1.4, draw: waterTower },
+    garage: { w: 2, d: 2, h: 0.9, draw: garage },
+    glassTower: { w: 3, d: 3, h: 12.2, draw: glassTower }, twin: { w: 4, d: 4, h: 11.2, draw: twinTowers }, needle: { w: 3, d: 3, h: 12.6, draw: needle }, twisted: { w: 3, d: 3, h: 10.4, draw: twisted }, egg: { w: 3, d: 3, h: 8.2, draw: egg },
+    brown: { w: 2, d: 2, h: 1.4, draw: brownstones }, highrise: { w: 2, d: 2, h: 7.0, draw: highrise }, marinaT: { w: 2, d: 2, h: 8.8, draw: marinaTower }, mayor: { w: 3, d: 3, h: 7.2, draw: mayorHome },
+    stadium: { w: 4, d: 4, h: 2.8, draw: stadium }, mall: { w: 3, d: 3, h: 1.7, draw: mall }, cinema: { w: 2, d: 2, h: 2.0, draw: cinema }, hotel: { w: 2, d: 2, h: 5.0, draw: hotel }, library: { w: 2, d: 2, h: 1.4, draw: library },
+    mosque: { w: 2, d: 2, h: 2.8, draw: mosque }, church: { w: 2, d: 2, h: 3.1, draw: church }, market: { w: 2, d: 2, h: 0.9, draw: market }, ferris: { w: 3, d: 3, h: 3.4, draw: ferris }, golf: { w: 4, d: 4, h: 1.2, draw: golf },
+    pool: { w: 2, d: 2, h: 1.1, draw: pool }, marina: { w: 3, d: 3, h: 1.2, draw: marina }, obelisk: { w: 1, d: 1, h: 2.0, draw: obelisk }, fountain: { w: 1, d: 1, h: 0.8, draw: fountain }, tree: { w: 1, d: 1, h: 1.3, draw: (l, v) => treeAt(0.5, 0.5, v, 1.15) }, scen: { w: 1, d: 1, h: 1.3, draw: (l, v) => treeAt(0.5, 0.5, v, 1.0) }
   };
   const cache = {};
   function sprite(kind, lvl, v) {
@@ -538,19 +728,19 @@ window.GFX = (function () {
     const minX = -k.d * 32 - ml, maxX = k.w * 32 + 30, minY = -mt, maxY = (k.w + k.d) * 16 + 24;
     const cv = document.createElement('canvas'); cv.width = Math.ceil((maxX - minX) * SPR); cv.height = Math.ceil((maxY - minY) * SPR);
     const g = cv.getContext('2d'); g.setTransform(SPR, 0, 0, SPR, -minX * SPR, -minY * SPR);
-    const pg = E.g, pl = E.lit; E.g = g; E.lit = [];
+    const pg = E.g, pl = E.lit, pw = E.world; E.g = g; E.lit = []; E.world = false;
     k.draw(lvl, v);
     s = { cv, ox: -minX, oy: -minY, w: maxX - minX, h: maxY - minY, lit: E.lit };
-    E.g = pg; E.lit = pl; cache[key] = s; return s;
+    E.g = pg; E.lit = pl; E.world = pw; cache[key] = s; return s;
   }
   function blit(s, bx, by, alpha) {
     const g = E.g; if (alpha != null) g.globalAlpha = alpha;
-    g.drawImage(s.cv, PXf(bx, by) - s.ox, PYf(bx, by, 0) - s.oy, s.w, s.h);
+    g.drawImage(s.cv, (bx - by) * 32 - s.ox, (bx + by) * 16 - s.oy, s.w, s.h);
     if (alpha != null) g.globalAlpha = 1;
   }
   function litWindows(s, bx, by) {
     if (!s.lit.length) return; const g = E.g;
-    g.save(); g.translate(PXf(bx, by), PYf(bx, by, 0)); g.beginPath();
+    g.save(); g.translate((bx - by) * 32, (bx + by) * 16); g.beginPath();
     for (const q of s.lit) { g.moveTo(q[0][0], q[0][1]); for (let i = 1; i < 4; i++) g.lineTo(q[i][0], q[i][1]); g.closePath(); }
     g.fillStyle = 'rgba(255,214,120,.95)'; g.fill(); g.restore();
   }
@@ -618,7 +808,9 @@ window.GFX = (function () {
     for (const [, f] of vis) F(f.p, sideCol || col, clamp(0.78 + 0.16 * f.n[0] - 0.16 * f.n[1] + 0.12 * clamp(f.run / h, 0, 1), 0.4, 1.1), true);
     F([TFL, TFR, TBR, TBL], topCol || col, 1.08, false);
   }
-  function drawCar(c, m, preview) {
+  function drawCar(c0, m, preview) {
+    let c = c0; const pw = E.world;
+    if (pw && E.rot) { c = { x: rvx(c0.x, c0.y), y: rvy(c0.x, c0.y), a: c0.a + E.rot * Math.PI / 2, color: c0.color, brake: c0.brake }; E.world = false; }
     const L = m.L, Wd = m.W, a = c.a, ca = Math.cos(a), sa = Math.sin(a), g = E.g;
     const WP = (u, v) => [c.x + ca * u - sa * v, c.y + sa * u + ca * v];
     const sh = [[-0.54, -0.6], [0.54, -0.6], [0.54, 0.6], [-0.54, 0.6]].map(([u, v]) => { const w = WP(u * L + 0.03, v * Wd - 0.02); return P(w[0] + 0.03, w[1] + 0.03, 0.01); });
@@ -640,9 +832,10 @@ window.GFX = (function () {
     if ((ca + sa) > -0.1) { const col = night ? '#fffbe0' : '#fff2c4'; lq(0.487 * L, Wd * 0.27, Wd * 0.43, m.bh * 0.5, m.bh * 0.85, col); lq(0.487 * L, -Wd * 0.43, -Wd * 0.27, m.bh * 0.5, m.bh * 0.85, col); }
     if ((ca + sa) < 0.1) { const col = c.brake ? '#ff3030' : (night ? '#d02020' : '#9b1717'); lq(-0.487 * L, Wd * 0.27, Wd * 0.43, m.bh * 0.5, m.bh * 0.85, col); lq(-0.487 * L, -Wd * 0.43, -Wd * 0.27, m.bh * 0.5, m.bh * 0.85, col); }
     if (night && E.glows) {
-      const f = WP(L * 0.5 + 0.55, 0); E.glows.push({ x: f[0], y: f[1], z: 0.05, r: 60, c: '255,238,180', a: 0.2 });
-      const r = WP(-L * 0.5, 0); E.glows.push({ x: r[0], y: r[1], z: 0.1, r: c.brake ? 28 : 14, c: '255,40,40', a: c.brake ? 0.45 : 0.2 });
+      const c0a = Math.cos(c0.a), c0s = Math.sin(c0.a), f = [c0.x + c0a * (L * 0.5 + 0.55), c0.y + c0s * (L * 0.5 + 0.55)]; E.glows.push({ x: f[0], y: f[1], z: 0.05, r: 60, c: '255,238,180', a: 0.2 });
+      const r = [c0.x - c0a * L * 0.5, c0.y - c0s * L * 0.5]; E.glows.push({ x: r[0], y: r[1], z: 0.1, r: c.brake ? 28 : 14, c: '255,40,40', a: c.brake ? 0.45 : 0.2 });
     }
+    E.world = pw;
   }
   function drawPerson(p) {
     const g = E.g, q = P(p.x, p.y, 0), sw = Math.sin(E.now * 7 + p.ph) * 1.6;
@@ -653,5 +846,5 @@ window.GFX = (function () {
   }
   function ell(x, y, z, r, fill) { const g = E.g; g.beginPath(); g.ellipse(PXf(x, y), PYf(x, y, z), r * 45.25, r * 22.63, 0, 0, 7); g.fillStyle = fill; g.fill(); }
 
-  return { E, TW, TH, ZS, clamp, lerp, hash2, fbm, shade, P, PXf, PYf, path, F, lot, band, line, KINDS, sprite, blit, litWindows, terrain, scenery, drawCar, drawPerson, ell, treeAt };
+  return { E, TW, TH, ZS, clamp, lerp, hash2, fbm, shade, P, PR, PXf, PYf, vsum, vAnchor, rvx, rvy, path, F, lot, band, line, KINDS, sprite, blit, litWindows, terrain, scenery, drawCar, drawPerson, ell, treeAt };
 })();

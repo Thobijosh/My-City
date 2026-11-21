@@ -1,7 +1,7 @@
 // Offline cache: after the first visit the game runs with zero data.
 // Bump VERSION whenever you upload a new game.js / index.html so phones pick up the update.
-const VERSION = 'mycity-v2';
-const FILES = ['./', 'index.html', 'game.js', 'gfx.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'mycity-v4';
+const FILES = ['./', 'index.html', 'game.js', 'gfx.js','fp.js', 'manifest.json', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
